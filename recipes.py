@@ -1,4 +1,5 @@
 import z3
+import itertools as it
 
 
 class MacroTriple:
@@ -58,9 +59,9 @@ def recipeFormula(
     Args:
         ingredients: A list of MacroTriple objects representing the ingredients.
         target: A MacroTriple object representing the target macro-nutrient composition.
-        min_bound: The minimum value for the coefficient of each ingredient. Must 
+        min_bound: The minimum value for the coefficient of each ingredient. Must
             be greater than 0.
-        max_bound: The maximum value for the coefficient of each ingredient. Must be 
+        max_bound: The maximum value for the coefficient of each ingredient. Must be
             greater than `min_bound`.
 
     Returns:
@@ -71,11 +72,11 @@ def recipeFormula(
 
     # Initialize equations with the first ingredient
     fat, carbs, protien, coefficient = ingredients[0]
-    
+
     # Add bounds for the initial coefficient
     s.add(coefficient > min_bound)
     s.add(coefficient < max_bound)
-    
+
     # Initialize equations for fat, carbs, and protein
     f_eq = coefficient * fat
     c_eq = coefficient * carbs
@@ -89,7 +90,12 @@ def recipeFormula(
         f_eq += coefficient * fat
         c_eq += coefficient * carbs
         p_eq += coefficient * protien
-    
+
+    # Add the constraint that each ingredient must be greater than
+    # or equal to the next as specified by the FDA
+    for (_, _, _, coef1), (_, _, _, coef2) in it.pairwise(ingredients):
+        s.add(coef1 >= coef2)
+
     # Add the target constraints
     s.add(f_eq == target.fat)
     s.add(c_eq == target.carbs)
@@ -124,6 +130,9 @@ def getMultipleRecipeModels(solver, max_models=10):
         solver.add(z3.Or(*block))
         count += 1
 
+    if len(models) == 0:
+        print("No recipes found.")
+
     return models
 
 
@@ -141,7 +150,7 @@ if __name__ == "__main__":
     Target = MacroTriple("Bites", 5, 11, 4, 1)
 
     # Set of formulas to check for protay bites
-    formula = recipeFormula(Ingredients, Target, min_bound=2, max_bound=7)
+    formula = recipeFormula(Ingredients, Target, min_bound=2, max_bound=9)
 
     # Get all the models within some max_models limit
     all_models = getMultipleRecipeModels(formula, max_models=3)
@@ -149,5 +158,5 @@ if __name__ == "__main__":
 
     # Print out each model
     for i, model in enumerate(all_models):
-        print(f"\nModel {i+1}:")
+        print(f"\nRecipe {i+1}:")
         print(model)
