@@ -104,7 +104,7 @@ def recipeFormula(
     return s
 
 
-def getMultipleRecipeModels(solver, max_models=10):
+def getMultipleRecipeModels(solver: z3.Solver, max_models: int = 10):
     """
     Generates multiple recipes (satisfying assignments) for a given Z3 solver.
     Each model is refined from the previous set of generated models.
@@ -119,14 +119,19 @@ def getMultipleRecipeModels(solver, max_models=10):
     models = []
     count = 0
     while solver.check() == z3.sat and count < max_models:
+        # capture the satisfying assignments
         model = solver.model()
         models.append(model)
 
-        # Create a new constraint that excludes the current model
+        # Create a new constraint that excludes the current 
+        # satisfying assignments
         block = []
         for d in model.decls():
-            # Create a constraint that is the negation of the current model
+            # append a conditions saying that 
+            # `var` != `previous satisfying assignment of var`
             block.append(d() != model[d])
+
+        # Add these constraints back into the entire model
         solver.add(z3.Or(*block))
         count += 1
 
